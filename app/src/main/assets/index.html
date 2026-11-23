@@ -1,1 +1,149 @@
 
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>2URFAVIE — Pembukuan Thrift Anak</title>
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#9b59b6"><meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--pr:#9b59b6;--pr2:#f3e3f9;--pk:#f6b8d9;--bd:#ecdcf3;--mu:#7a6785;--ok:#2e9e6b;--er:#d24b6a}
+*{box-sizing:border-box}body{margin:0;background:#fbf6fd;color:#2d1b36;font-family:system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 90px}
+header{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:760px;margin:auto}header img{border-radius:50%}header b{color:var(--pr);font-size:20px}header small{display:block;color:var(--mu)}
+main{max-width:760px;margin:auto;padding:0 14px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:14px;margin-bottom:12px}.card h3{margin:0 0 8px;font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.kpi{background:#fff;border:1px solid var(--bd);border-radius:16px;padding:12px}.kpi span{font-size:12px;color:var(--mu)}.kpi b{display:block;font-size:18px}
+label{font-size:12px;color:var(--mu);display:block;margin-top:6px}
+input,select{width:100%;padding:10px;margin:3px 0;border:1px solid var(--bd);border-radius:10px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font:inherit;border:0;border-radius:12px;padding:11px 16px;background:var(--pr);color:#fff;cursor:pointer}button.s{background:var(--pr2);color:var(--pr);padding:6px 10px;font-size:13px}button.d{background:none;color:var(--er);padding:6px 8px;font-size:13px}.full{width:100%;margin-top:10px}
+.it{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--bd)}.it:first-child{border-top:0}.it>div:nth-child(2){flex:1;min-width:0}.it b{font-weight:500}.it small{color:var(--mu);font-size:12px;display:block}
+.th{width:48px;height:48px;border-radius:10px;object-fit:cover;background:var(--pr2);flex:none}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--pr2);color:var(--pr)}.tag.keep{background:var(--pk);color:#5a1f43}.tag.terjual{background:#e5e0e8;color:#7a6785}
+.bar{height:10px;border-radius:99px;background:var(--pr2);overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--pr),var(--pk))}
+.pos{color:var(--ok)}.neg{color:var(--er)}.empty{text-align:center;color:var(--mu);padding:16px;font-size:14px}.note{background:#fff3cd;color:#6b5200;border-radius:12px;padding:10px;font-size:13px;margin-bottom:12px}
+.r{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;background:none;color:var(--mu);font-size:10px;padding:6px 0;display:flex;flex-direction:column;align-items:center}nav button span{font-size:19px}nav button.on{color:var(--pr);background:var(--pr2)}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#2d1b36;color:#fff;padding:8px 16px;border-radius:99px;font-size:13px;opacity:0;transition:.25s;pointer-events:none}#toast.on{opacity:1}
+#mod{display:none;position:fixed;inset:0;background:#0007;z-index:40;align-items:center;justify-content:center;padding:16px}#mod .card{width:100%;max-width:380px;margin:0;max-height:92vh;overflow:auto}
+#lock{display:none;position:fixed;inset:0;background:#fbf6fd;z-index:60;align-items:center;justify-content:center;padding:20px}
+#pl{display:none}
+@media print{body>*:not(#pl){display:none!important}#pl{display:grid!important;grid-template-columns:repeat(3,1fr);gap:3mm}.lb{border:1px dashed #999;padding:3mm;text-align:center;font-size:11px;break-inside:avoid}.lb b,.lb strong,.lb span{display:block}.lb strong{font-size:16px}.lb em{font-style:normal;font-weight:700;font-size:14px}}
+</style></head><body>
+<header><img src="icons/icon-192.png" width="44" height="44" alt="2urfavie"><div><b>2URFAVIE</b></div></header>
+<main id="app"></main><nav id="nav"></nav><div id="toast"></div><div id="mod"></div><div id="lock"></div><div id="pl"></div>
+<script>
+const $=s=>document.querySelector(s);
+const CH=['TikTok','Shopee','Instagram','WhatsApp','Offline','Lainnya'];
+const SZ=['Newborn','0-6 bln','6-12 bln','1-2 th','3-4 th','5-6 th','7-8 th','9-10 th','11-12 th'];
+const CAT=['Atasan','Bawahan','Dress','Setelan','Jaket','Piyama','Aksesoris','Lainnya'];
+let S={items:[],sales:[],expenses:[],lastBackup:0,seq:0,fee:{},pin:''},tab='dash';
+const rp=n=>(n<0?'-':'')+'Rp'+Math.abs(Math.round(n||0)).toLocaleString('id-ID');
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const mo=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const sum=(a,f)=>a.reduce((s,x)=>s+(+f(x)||0),0);
+const opt=a=>a.map(x=>`<option>${x}</option>`).join('');
+const st=i=>i.status=='keep'&&Date.now()>i.keepUntil?'tersedia':i.status;
+const act=()=>S.sales.filter(x=>x.status!='batal');
+function toast(m){const t=$('#toast');t.textContent=m;t.className='on';setTimeout(()=>t.className='',2200)}
+/* ---- penyimpanan lokal (IndexedDB) ---- */
+const DB=()=>new Promise((ok,no)=>{const r=indexedDB.open('2urfavie',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+async function idbGet(k){const d=await DB();return new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}
+async function idbSet(k,v){const d=await DB();return new Promise((ok,no)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
+async function commit(msg){try{await idbSet('state',S);if(msg)toast(msg)}catch(e){toast('GAGAL menyimpan! Buat backup sekarang.')}render()}
+/* ---- navigasi ---- */
+const NAV=[['dash','📊','Dashboard'],['stok','👚','Stok'],['jual','🛍️','Jual'],['biaya','💸','Biaya'],['lap','📑','Laporan'],['set','⚙️','Setelan']];
+$('#nav').innerHTML=NAV.map(n=>`<button id="n-${n[0]}" onclick="go('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join('');
+function go(t){tab=t;NAV.forEach(n=>$('#n-'+n[0]).classList.toggle('on',n[0]==t));$('#app').innerHTML=(F[t]?F[t]():'')+'<div id="list"></div>';render();scrollTo(0,0)}
+function render(){if($('#list'))$('#list').innerHTML=V[tab]();const s=$('#selItem');if(s){const v=s.value;s.innerHTML='<option value="">— pilih barang —</option>'+S.items.filter(i=>st(i)!='terjual').map(i=>`<option value="${i.id}">${esc(i.sku)} · ${esc(i.name)}</option>`).join('');if(v)s.value=v}}
+/* ---- form ---- */
+const F={
+stok:()=>`<div class="card"><h3>Tambah barang</h3><label>Nama barang</label><input id="in" placeholder="mis. Dress bunga anak">
+<div class="row"><div><label>Ukuran</label><select id="isz">${opt(SZ)}</select></div><div><label>Kategori</label><select id="ict">${opt(CAT)}</select></div></div>
+<div class="row"><div><label>Harga beli (modal)</label><input id="ic" type="number" inputmode="numeric"></div><div><label>Harga jual</label><input id="ip" type="number" inputmode="numeric"></div></div>
+<label>Foto (opsional, dikecilkan otomatis)</label><input id="ph" type="file" accept="image/*"><button class="full" onclick="addItem()">Simpan barang</button></div>
+<div class="card"><label style="margin-top:0">Untuk tombol Keep: nama pembeli &amp; durasi</label><div class="row"><input id="kn" placeholder="@akun / nama"><select id="km"><option value="15">15 menit</option><option value="30" selected>30 menit</option><option value="60">1 jam</option><option value="180">3 jam</option></select></div></div>
+<input id="q" placeholder="🔍 Cari nama / kode / ukuran" oninput="render()" style="margin-bottom:8px"><button class="s" style="margin-bottom:10px" onclick="printLabels()">🏷 Cetak label (sesuai daftar di bawah)</button>`,
+jual:()=>`<div class="card"><h3>Catat penjualan</h3><label>Barang</label><select id="selItem" onchange="pick()"></select>
+<div class="row"><div><label>Channel</label><select id="sc" onchange="autoFee()">${opt(CH)}</select></div><div><label>Harga jual</label><input id="sp" type="number" inputmode="numeric" oninput="autoFee()"></div></div>
+<div class="row"><div><label>Diskon (Rp)</label><input id="sd" type="number" inputmode="numeric" value="0"></div><div><label>Fee marketplace (Rp)</label><input id="sf" type="number" inputmode="numeric" value="0"></div></div>
+<label>Ongkir ditanggung toko (Rp)</label><input id="ss" type="number" inputmode="numeric" value="0"><label>Catatan / nama pembeli (opsional)</label><input id="sn"><label>Tanggal penjualan</label><input id="sdt" type="date" value="${td()}">
+<button class="full" onclick="addSale()">Simpan penjualan</button></div>`,
+biaya:()=>`<div class="card"><h3>Catat pengeluaran</h3><label>Keterangan</label><input id="el" placeholder="mis. Plastik packing, beli bal"><label>Jumlah (Rp)</label><input id="ea" type="number" inputmode="numeric"><label>Jenis</label><select id="et"><option value="ops">Operasional (packing, ongkir, dll)</option><option value="modal">Kulakan / beli bal (modal stok)</option></select><label>Tanggal</label><input id="edt" type="date" value="${td()}"><button class="full" onclick="addExp()">Simpan pengeluaran</button></div>`
+};
+function shrink(f){return new Promise(r=>{if(!f)return r('');const fr=new FileReader();fr.onerror=()=>r('');fr.onload=()=>{const im=new Image();im.onerror=()=>r('');im.onload=()=>{const k=Math.min(1,480/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.65))};im.src=fr.result};fr.readAsDataURL(f)})}
+/* ---- aksi ---- */
+async function addItem(){const n=$('#in').value.trim();if(!n)return toast('Isi nama barang');
+S.items.unshift({id:uid(),name:n,sku:'2UF-'+String(++S.seq).padStart(4,'0'),size:$('#isz').value,cat:$('#ict').value,cost:+$('#ic').value||0,price:+$('#ip').value||0,photo:await shrink($('#ph').files[0]),status:'tersedia',ts:Date.now()});
+await commit('Barang tersimpan');go('stok')}
+function keep(id){const i=S.items.find(x=>x.id==id),n=$('#kn').value.trim();if(!n)return toast('Isi nama pembeli di kolom Keep');if(st(i)!='tersedia')return;
+Object.assign(i,{status:'keep',keepFor:n,keepUntil:Date.now()+(+$('#km').value||30)*60000});commit('Barang di-keep')}
+function unkeep(id){Object.assign(S.items.find(x=>x.id==id),{status:'tersedia',keepFor:'',keepUntil:0});commit('Keep dilepas')}
+function delItem(id){const i=S.items.find(x=>x.id==id);if(i.status=='terjual')return toast('Barang terjual tidak bisa dihapus');if(confirm('Hapus barang ini?')){S.items=S.items.filter(x=>x.id!=id);commit('Dihapus')}}
+function sell(id){go('jual');$('#selItem').value=id;pick()}
+function pick(){const i=S.items.find(x=>x.id==$('#selItem').value);if(i){$('#sp').value=i.price;autoFee()}}
+async function addSale(){const i=S.items.find(x=>x.id==$('#selItem').value);if(!i)return toast('Pilih barang dulu');if(i.status=='terjual')return toast('Barang sudah terjual');
+const p=+$('#sp').value||0,d=+$('#sd').value||0,f=+$('#sf').value||0,o=+$('#ss').value||0;if(p<0||d<0||f<0||o<0)return toast('Angka tidak boleh negatif');
+S.sales.unshift({id:uid(),itemId:i.id,name:i.name,sku:i.sku,ch:$('#sc').value,price:p,disc:d,fee:f,ship:o,cost:i.cost,note:$('#sn').value.trim(),profit:p-d-f-o-i.cost,status:'ok',ts:tsOf($('#sdt').value)});
+Object.assign(i,{status:'terjual',keepFor:'',keepUntil:0});await commit('Penjualan tersimpan');go('jual')}
+function delSale(id){const s=S.sales.find(x=>x.id==id);if(!s||s.status=='batal')return;if(!confirm('Batalkan penjualan ini? Barang kembali ke stok.'))return;
+s.status='batal';const i=S.items.find(x=>x.id==s.itemId);if(i)i.status='tersedia';commit('Penjualan dibatalkan, stok kembali')}
+async function addExp(){const l=$('#el').value.trim(),a=+$('#ea').value;if(!l||!(a>0))return toast('Lengkapi data');S.expenses.unshift({id:uid(),label:l,amount:a,type:$('#et').value,ts:tsOf($('#edt').value)});await commit('Pengeluaran tersimpan');go('biaya')}
+function delExp(id){if(confirm('Hapus pengeluaran ini?')){S.expenses=S.expenses.filter(x=>x.id!=id);commit('Dihapus')}}
+/* ---- backup ---- */
+function dl(name,text,type){if(window.AndroidBridge){AndroidBridge.shareFile(name,type,text);return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+async function backup(){const prev=S.lastBackup;S.lastBackup=Date.now();const txt=JSON.stringify({...S,pin:''}),name='2urfavie-backup-'+td()+'.json';try{const f=new File([txt],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Backup 2URFAVIE'});await commit('Backup dibagikan');return}}catch(e){if(e&&e.name=='AbortError'){S.lastBackup=prev;return}}dl(name,txt,'application/json');commit('Backup diunduh')}
+function restore(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.items)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw 0;
+if(!confirm('Ganti SEMUA data di perangkat ini dengan isi backup?'))return;S={lastBackup:0,fee:{},seq:0,...d,pin:S.pin};S.seq=Math.max(S.seq,...S.items.map(i=>+String(i.sku).replace(/\D/g,'')||0));commit('Data dipulihkan')}catch(e){toast('File backup tidak valid')}};r.readAsText(f)}
+function resetAll(){if(confirm('HAPUS semua data di perangkat ini? Pastikan sudah backup.')&&confirm('Yakin? Tindakan ini tidak bisa dibatalkan.')){S={items:[],sales:[],expenses:[],lastBackup:0,seq:0,fee:{},pin:S.pin};commit('Semua data dihapus')}}
+function csv(){const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';const rows=[['Tanggal','Kode','Barang','Channel','Harga','Diskon','Fee','Ongkir','Modal','Laba','Status','Catatan']].concat(S.sales.map(s=>[new Date(s.ts).toLocaleDateString('id-ID'),s.sku,s.name,s.ch,s.price,s.disc,s.fee,s.ship,s.cost,s.profit,s.status=='batal'?'Batal':'Terjual',s.note]));
+dl('penjualan-2urfavie.csv','\ufeff'+rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv')}
+/* ---- tambahan ---- */
+const td=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const tsOf=v=>!v||v==td()?Date.now():new Date(v+'T12:00:00').getTime();
+const opx=E=>sum(E.filter(x=>x.type!='modal'),x=>x.amount);
+let flt='all';
+const fl=()=>{const q=($('#q')?$('#q').value:'').toLowerCase();return S.items.filter(i=>(flt=='all'||st(i)==flt)&&(i.name+i.sku+i.size+i.cat).toLowerCase().includes(q))};
+function autoFee(){$('#sf').value=Math.round((+$('#sp').value||0)*(S.fee[$('#sc').value]||0)/100)}
+function setFee(c,v){S.fee[c]=Math.max(0,+v||0);commit('Fee '+c+' disimpan')}
+function modal(t,body,ok){const m=$('#mod');m.style.display='flex';m.innerHTML=`<div class="card"><h3>${t}</h3>${body}<button class="full" id="mok">Simpan</button><button class="full s" id="mx">Batal</button></div>`;$('#mx').onclick=()=>m.style.display='none';$('#mok').onclick=async()=>{if(await ok()!==false)m.style.display='none'}}
+function editItem(id){const i=S.items.find(x=>x.id==id);modal('Edit barang',`<label>Nama</label><input id="en" value="${esc(i.name)}"><div class="row"><div><label>Ukuran</label><select id="esz">${opt(SZ)}</select></div><div><label>Kategori</label><select id="ect">${opt(CAT)}</select></div></div><div class="row"><div><label>Modal</label><input id="ec" type="number" inputmode="numeric" value="${i.cost}"></div><div><label>Harga jual</label><input id="ep" type="number" inputmode="numeric" value="${i.price}"></div></div><label>Ganti foto (opsional)</label><input id="eph" type="file" accept="image/*">`,async()=>{const n=$('#en').value.trim();if(!n){toast('Nama kosong');return false}const ph=await shrink($('#eph').files[0]);Object.assign(i,{name:n,size:$('#esz').value,cat:$('#ect').value,cost:+$('#ec').value||0,price:+$('#ep').value||0});if(ph)i.photo=ph;await commit('Barang diperbarui')});$('#esz').value=i.size;$('#ect').value=i.cat}
+function printLabels(){const L=fl();if(!L.length)return toast('Tidak ada barang');$('#pl').innerHTML=L.map(i=>`<div class="lb"><small>2urfavie preloved</small><b>${esc(i.name)}</b><span>${esc(i.size)}</span><strong>${esc(i.sku)}</strong><em>${rp(i.price)}</em></div>`).join('');(window.AndroidBridge?AndroidBridge.printPage():window.print())}
+async function hash(p){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('2uf'+p));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return 'x'+btoa(p)}}
+async function setPin(){const p=$('#np').value;if(!/^\d{4,6}$/.test(p))return toast('PIN 4-6 angka');S.pin=await hash(p);await commit('PIN aktif');go('set')}
+function clearPin(){if(confirm('Matikan PIN?')){S.pin='';commit('PIN dimatikan');go('set')}}
+function lock(){const l=$('#lock');l.style.display='flex';l.innerHTML=`<div class="card" style="width:100%;max-width:300px;text-align:center"><h3 style="color:var(--pr)">2URFAVIE</h3><input id="up" type="password" inputmode="numeric" maxlength="6" placeholder="Masukkan PIN" style="text-align:center;font-size:20px"><button class="full" id="uk">Buka</button></div>`;const u=async()=>{if(await hash($('#up').value)==S.pin)l.style.display='none';else{toast('PIN salah');$('#up').value=''}};$('#uk').onclick=u;$('#up').onkeydown=e=>{if(e.key=='Enter')u()};$('#up').focus()}
+let hid=0;document.addEventListener('visibilitychange',()=>{if(document.hidden)hid=Date.now();else if(S.pin&&hid&&Date.now()-hid>60000)lock()});
+/* ---- tampilan ---- */
+const V={
+dash(){const m=mo(Date.now()),Sa=act().filter(x=>mo(x.ts)==m),E=S.expenses.filter(x=>mo(x.ts)==m);
+const om=sum(Sa,x=>x.price-x.disc),gk=om-sum(Sa,x=>x.cost),ln=gk-sum(Sa,x=>+x.fee+ +x.ship)-opx(E);
+const av=S.items.filter(i=>st(i)=='tersedia'),kp=S.items.filter(i=>st(i)=='keep'),modal=sum(S.items.filter(i=>st(i)!='terjual'),i=>i.cost);
+const by=CH.map(c=>[c,sum(Sa.filter(x=>x.ch==c),x=>x.price-x.disc)]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]),mx=by.length?by[0][1]:1;
+const old=!S.lastBackup||Date.now()-S.lastBackup>7*864e5,k=(a,b,c)=>`<div class="kpi"><span>${a}</span><b class="${c||''}">${b}</b></div>`;
+return (old&&(S.items.length||S.sales.length)?'<div class="note">⚠️ Data tersimpan di perangkat ini saja. Belum backup 7 hari terakhir — buka Setelan → Backup.</div>':'')+
+`<div class="grid">${k('Omzet bulan ini',rp(om))}${k('Laba kotor',rp(gk))}${k('Laba bersih',rp(ln),ln>=0?'pos':'neg')}${k('Terjual',Sa.length+' pcs')}${k('Stok tersedia',av.length+' pcs')}${k('Sedang di-keep',kp.length+' pcs')}</div>
+<div class="card"><h3>Penjualan per channel</h3>${by.length?by.map(x=>`<div class="r"><span>${x[0]}</span><span>${rp(x[1])}</span></div><div class="bar"><i style="width:${x[1]/mx*100}%"></i></div>`).join(''):'<div class="empty">Belum ada penjualan bulan ini</div>'}</div>
+<div class="card"><h3>Modal tertahan di stok</h3><b style="font-size:20px">${rp(modal)}</b></div>`},
+stok(){const L=fl(),chips=['all','tersedia','keep','terjual'].map(c=>`<button class="s" style="${flt==c?'background:var(--pr);color:#fff;':''}margin:0 4px 8px 0" onclick="flt='${c}';render()">${c=='all'?'Semua':c[0].toUpperCase()+c.slice(1)}</button>`).join('');
+if(!L.length)return chips+'<div class="empty">Tidak ada barang</div>';
+return chips+'<div class="card">'+L.map(i=>{const s=st(i);return `<div class="it">${i.photo?`<img class="th" src="${i.photo}" alt="">`:'<div class="th"></div>'}<div><b>${esc(i.name)}</b><small>${esc(i.sku)} · ${esc(i.size)} · ${esc(i.cat)}<br>Modal ${rp(i.cost)} → Jual ${rp(i.price)}${s=='tersedia'?' · '+Math.floor((Date.now()-i.ts)/864e5)+' hari':''}${s=='keep'?`<br>🔒 ${esc(i.keepFor)} · sisa ${Math.max(1,Math.ceil((i.keepUntil-Date.now())/6e4))} mnt`:''}</small></div><span class="tag ${s}">${s}</span><div style="width:100%;display:flex;gap:6px;justify-content:flex-end">${s=='tersedia'?`<button class="s" onclick="keep('${i.id}')">Keep</button>`:''}${s=='keep'?`<button class="s" onclick="unkeep('${i.id}')">Lepas</button>`:''}${s!='terjual'?`<button class="s" onclick="sell('${i.id}')">Jual</button><button class="s" onclick="editItem('${i.id}')">Edit</button><button class="d" onclick="delItem('${i.id}')">✕</button>`:''}</div></div>`}).join('')+'</div>'},
+jual(){const L=S.sales.slice(0,80);if(!L.length)return '<div class="empty">Belum ada penjualan</div>';
+return '<div class="card"><h3>Riwayat terbaru</h3>'+L.map(s=>`<div class="it"><div class="th" style="width:0"></div><div><b>${esc(s.name)}</b><small>${new Date(s.ts).toLocaleDateString('id-ID')} · ${esc(s.ch)}${s.note?' · '+esc(s.note):''} · ${s.status=='batal'?'DIBATALKAN':`laba <span class="${s.profit>=0?'pos':'neg'}">${rp(s.profit)}</span>`}</small></div><b>${rp(s.price-s.disc)}</b>${s.status!='batal'?`<button class="d" onclick="delSale('${s.id}')">Batal</button>`:''}</div>`).join('')+'</div>'},
+biaya(){if(!S.expenses.length)return '<div class="empty">Belum ada pengeluaran</div>';
+return '<div class="card">'+S.expenses.slice(0,80).map(e=>`<div class="it"><div class="th" style="width:0"></div><div><b>${esc(e.label)}</b><small>${new Date(e.ts).toLocaleDateString('id-ID')} · ${e.type=='modal'?'Kulakan':'Operasional'}</small></div><b>${rp(e.amount)}</b><button class="d" onclick="delExp('${e.id}')">✕</button></div>`).join('')+'</div>'},
+lap(){const ms=[...new Set([mo(Date.now()),...act().map(x=>mo(x.ts)),...S.expenses.map(x=>mo(x.ts))])].sort().reverse();
+return '<div class="card"><h3>Laporan bulanan</h3>'+ms.map(m=>{const Sa=act().filter(x=>mo(x.ts)==m),E=S.expenses.filter(x=>mo(x.ts)==m),om=sum(Sa,x=>x.price-x.disc),hpp=sum(Sa,x=>x.cost),fe=sum(Sa,x=>+x.fee+ +x.ship),ex=opx(E),kl=sum(E,x=>x.amount)-ex,lb=om-hpp-fe-ex;
+return `<div style="border-top:1px solid var(--bd);padding:10px 0"><b>${m}</b> · ${Sa.length} terjual<div class="r"><span>Omzet (setelah diskon)</span><span>${rp(om)}</span></div><div class="r"><span>Modal (HPP)</span><span>${rp(hpp)}</span></div><div class="r"><span>Laba kotor</span><span>${rp(om-hpp)}</span></div><div class="r"><span>Fee &amp; ongkir</span><span>${rp(fe)}</span></div><div class="r"><span>Pengeluaran operasional</span><span>${rp(ex)}</span></div><div class="r"><b>Laba bersih</b><b class="${lb>=0?'pos':'neg'}">${rp(lb)}</b></div><div class="r" style="color:var(--mu)"><span>Kulakan (tidak dihitung laba)</span><span>${rp(kl)}</span></div><div class="r" style="color:var(--mu)"><span>Arus kas bersih (perkiraan)</span><span>${rp(om-fe-ex-kl)}</span></div></div>`}).join('')+'<button class="full" onclick="csv()">⬇ Ekspor penjualan (CSV)</button></div>'},
+set(){return `<div class="card"><h3>Backup &amp; pemulihan</h3><p style="font-size:13px;color:var(--mu);margin:0 0 8px">Data tersimpan di perangkat ini saja. Terakhir backup: ${S.lastBackup?new Date(S.lastBackup).toLocaleString('id-ID'):'belum pernah'}.</p>
+<button class="full" onclick="backup()">⬇ Backup (kirim ke WhatsApp / Drive)</button><label>Pulihkan dari file backup</label><input type="file" accept=".json,application/json" onchange="restore(this.files[0])">
+<button class="full d" style="border:1px solid var(--er)" onclick="resetAll()">Hapus semua data</button></div>
+<div class="card"><h3>Fee marketplace (%)</h3><p style="font-size:13px;color:var(--mu);margin:0 0 6px">Dipakai mengisi fee otomatis saat mencatat penjualan.</p>${CH.map(c=>`<div class="row" style="align-items:center"><span>${c}</span><input type="number" step="0.1" min="0" value="${S.fee[c]||0}" onchange="setFee('${c}',this.value)"></div>`).join('')}</div>
+<div class="card"><h3>Kunci PIN</h3><p style="font-size:13px;color:var(--mu);margin:0 0 6px">${S.pin?'PIN aktif.':'Belum ada PIN.'} Aplikasi terkunci lagi setelah ditinggal 1 menit. Catat PIN Anda; jika lupa, hapus data browser lalu pulihkan dari backup.</p><input id="np" type="password" inputmode="numeric" maxlength="6" placeholder="PIN baru (4-6 angka)"><button class="full" onclick="setPin()">Simpan PIN</button>${S.pin?'<button class="full d" onclick="clearPin()">Matikan PIN</button>':''}</div>
+<div class="card"><h3>Tentang</h3><p style="font-size:13px;color:var(--mu);margin:0">2URFAVIE — Pembukuan Thrift Anak. Berjalan offline, tanpa akun, tanpa internet setelah dipasang.</p></div>`}
+};
+(async()=>{try{const d=await idbGet('state');if(d)S={...S,...d};S.fee=S.fee||{};S.seq=Math.max(S.seq||0,...S.items.map(i=>+String(i.sku).replace(/\D/g,'')||0));navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){toast('Penyimpanan lokal tidak tersedia di browser ini')}
+go('dash');if(S.pin)lock();setInterval(()=>{if(tab=='stok')render()},30000)})();
+if('serviceWorker'in navigator&&!window.AndroidBridge)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script></body></html>
